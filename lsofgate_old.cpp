@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <array>
 #include <string>
 #include <regex>
@@ -33,8 +34,7 @@ int main() {
 
     std::string myIP = getLocalIP(); // Obtient l'IP du serveur
     logFile << "IP du serveur: " << myIP << std::endl;
-
-    std::map<std::string, int> ipCount; // Pour compter les connexions par IP
+    std::map<std::string, int> ipCount;
 
     while (true) {
         std::string lsofOutput = executeCommand("lsof -i TCP:22 -sTCP:ESTABLISHED");
@@ -48,19 +48,12 @@ int main() {
             std::string state = matches[8];
             std::string name = matches[9];
 
-            // Extraire et traiter l'adresse IP
-            std::regex ipRegex(R"(.*->(.*):\d+)");
-            std::smatch ipMatches;
-            if (std::regex_search(name, ipMatches, ipRegex) && ipMatches.size() > 1) {
-                std::string ip = ipMatches[1];
-                ipCount[ip]++;
-                if (ipCount[ip] > 3) { // Exemple de seuil pour la détection
-                    std::string killCommand = "kill -9 " + pid;
-                    executeCommand(killCommand.c_str());
-                    logFile << "Terminé processus suspect PID: " << pid << " pour IP: " << ip << std::endl;
-                } else {
-                    logFile << "Connexion valide établie par PID : " << pid << " (" << process << ") de l'IP: " << ip << std::endl;
-                }
+            if (state == "ESTABLISHED" && ipCount[name]++ > 3) {  // Exemple de condition pour une activité suspecte
+                std::string killCommand = "kill -9 " + pid;
+                executeCommand(killCommand.c_str());
+                logFile << "Terminé processus suspect PID: " << pid << " pour IP: " << name << std::endl;
+            } else {
+                logFile << "Connexion valide établie par PID : " << pid << " (" << process << ") de l'IP: " << name << std::endl;
             }
             searchStart = matches.suffix().first;
         }
